@@ -1,53 +1,70 @@
-use futures::{future::BoxFuture, FutureExt};
+use crate::auth::auth_key;
+use axum::{
+    debug_handler,
+    http::StatusCode,
+    http::{HeaderMap, Method},
+    response::IntoResponse,
+    Json,
+};
+use r_http::{CommandReqBody, CommandRespBody};
+use remeowte_http as r_http;
 use std::{
-    io::{Error, Result}, os::unix::process::ExitStatusExt, process::Output, time::SystemTime
+    default,
+    io::{Error, Result},
+    os::unix::process::ExitStatusExt,
+    process::Output,
+    time::SystemTime,
 };
 use tokio::process::Command;
-use axum::{Json, http::{Method, HeaderMap}, debug_handler};
-use serde_json::Value;
-use serde::{Serialize, Deserialize};
-use tracing::{error, info, debug, trace};
+use tracing::{debug, error, info, instrument, trace};
 
-#[derive(Serialize, Deserialize)]
-pub(crate) struct CommandReqBody {
-    command: String,
-    args: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct CommandRespBody{
-    stdout: String,
-    stderr: String,
-    return_code: i32,
-    terminate_signal: i32,
-    start_time: Option<SystemTime>,
-    end_time: Option<SystemTime>,
-    desc: String,
-}
-
-impl Default for CommandRespBody {
-    fn default() -> Self {
-        CommandRespBody{
-            stdout: String::new(),
-            stderr: String::new(),
-            return_code: 0,
-            terminate_signal: 0,
-            start_time: Some(SystemTime::now()),
-            end_time: None,
-            desc: String::new(),
+fn validate(headers: &HeaderMap) -> bool {
+    let (mut ak, mut sk) = (None, None);
+    for (name, val) in headers {
+        let val = val.to_str().unwrap_or_default().to_string();
+        match name.to_string().to_ascii_lowercase().as_str() {
+            "ak" => {
+                ak = Some(val);
+            }
+            "sk" => {
+                sk = Some(val);
+            }
+            _ => {}
         }
     }
+
+    if ak.is_none() || sk.is_none() {
+        return false;
+    }
+
+    tracing::debug!("auth res is {}", auth_key(ak.unwrap(), sk.unwrap()));
+    true // FIXME: for test, always true.
 }
 
 #[debug_handler]
+#[instrument]
 pub(crate) async fn cmd_exec(
     method: Method,
     headers: HeaderMap,
     // `String` consumes the request body and thus must be the last extractor
-    // cmd: serde_json::Result<CommandReqBody>,
-    payload: Option<Json<CommandReqBody>>
-) -> Json<CommandRespBody> {
-    // TODO: add auth here
+    payload: Option<Json<CommandReqBody>>,
+) -> impl IntoResponse {
+    assert!(method == Method::POST);
+
+    if !validate(&headers) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(CommandRespBody {
+                stdout: String::new(),
+                stderr: String::new(),
+                return_code: 0,
+                terminate_signal: 0,
+                start_time: Some(SystemTime::now()),
+                end_time: None,
+                desc: "Please provide access key and secret key".to_string(),
+            }),
+        );
+    }
     let mut resp = CommandRespBody::default();
     match payload {
         Some(Json(body)) => {
@@ -74,7 +91,7 @@ pub(crate) async fn cmd_exec(
                     }
                 },
                 Err(e) => {
-                    resp.desc = "Command execute failed. Error: ".to_string() + & e.to_string();
+                    resp.desc = "Command execute failed. Error: ".to_string() + &e.to_string();
                 }
             }
         },
@@ -82,7 +99,7 @@ pub(crate) async fn cmd_exec(
             resp.desc = "Json format in request body not correct.".to_string();
         }
     }
-    Json(resp)
+    (StatusCode::OK, Json(resp))
 }
 
 // #[cfg(test)]

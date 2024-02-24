@@ -2,24 +2,26 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use futures::{executor, future::BoxFuture};
-use std::{
-    result::Result,
-    io::Error,
-};
-use tracing::{error, info, debug, trace};
-use tracing_subscriber::FmtSubscriber;
+use std::{env, io::Error, result::Result};
+use tracing::{debug, error, info, trace};
+use tracing_subscriber::{FmtSubscriber, filter::EnvFilter};
 
-mod command;
 mod auth;
+mod command;
 
-// TODO: read json, make it configurable 
+// TODO: read json, make it configurable
 #[tokio::main]
 async fn main() {
     // Create and initialize the tracing subscriber
-    let subscriber = FmtSubscriber::builder().finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+    let env_filter = EnvFilter::new("debug");
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(env_filter)
+        .finish();
     
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+
+    tracing::info!("weee");
+
     let app = Router::new()
         // .route("/:cmd", get(command::execute(Box::new(command::CommandExec::new())).await))
         .route("/cmd", post(command::cmd_exec));
