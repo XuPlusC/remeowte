@@ -12,13 +12,14 @@ const DEBUG_FLAG: bool = cfg!(debug_assertions);
 static AUTH_MAP: Lazy<RwLock<HashMap<String, String>>> = Lazy::new(|| {
     let mut m = HashMap::new();
     if DEBUG_FLAG {
+        tracing::warn!("debug flag set, adding default AK SK.");
         m.insert(DEFAULT_AK.to_string(), DEFAULT_SK.to_string());
     }
     RwLock::new(m)
 });
 
 pub fn auth_key(ak: String, sk: String) -> bool {
-    match AUTH_MAP.read().unwrap().get(&ak) {   // TODO: possible to replace the unwrap() with a safer way?
+    match AUTH_MAP.read().unwrap().get(&ak) {
         Some(v) => {
             *v == sk
         },
@@ -34,6 +35,8 @@ pub fn init(keys: HashMap<String, String>) {
         }
     }
 }
+
+// TODO: make a reload api.
 
 #[cfg(test)]
 mod test{

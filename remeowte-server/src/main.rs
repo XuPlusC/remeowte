@@ -2,23 +2,31 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::{env, io::Error, result::Result};
+use std::{env, io::Error, result::Result, path::PathBuf};
 use tracing::{debug, error, info, trace};
 use tracing_subscriber::{FmtSubscriber, filter::EnvFilter};
 
 mod auth;
 mod command;
+mod config;
+mod cli;
+use cli::{Cli, RuntimeParam};
+
+fn init_tracing() {
+    let env_filter = EnvFilter::new("debug");
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(env_filter)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+}
 
 // TODO: read json, make it configurable
 #[tokio::main]
 async fn main() {
     // Create and initialize the tracing subscriber
-    let env_filter = EnvFilter::new("debug");
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(env_filter)
-        .finish();
-    
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+    init_tracing();
+
+    let rt_param = Cli::init();
 
     tracing::info!("weee");
 
