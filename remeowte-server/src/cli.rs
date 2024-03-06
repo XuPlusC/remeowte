@@ -6,10 +6,9 @@ use std::{
 };
 
 const DEFUALT_CONFIG: &str = "config.json";
-const DEFAULT_LOG_DIR: &str = "log";
+const DEFAULT_LOG_DIR: &str = "logs";
 
 #[derive(Parser)]
-// #[command(version, about, long_about = None)]
 #[command(name = "remeowte")]
 #[command(author = "cococat; mail: https://github.com/XuPlusC")]
 #[command(version = "1.0")]
@@ -19,14 +18,19 @@ pub(crate) struct Cli {
     #[arg(short, long, value_name = "FILE")]
     pub(crate) config: Option<PathBuf>,
 
-    /// Directory of output log file. If not set, will use './log/' in the binary path.
+    /// Directory of output log file. If not set, will use './logs/' in the binary path.
     #[arg(short, long, value_name = "FILE")]
     pub(crate) log_dir: Option<PathBuf>,
+
+    /// Sets the level of verbosity
+    #[clap(short, long, action = clap::ArgAction::SetTrue)]
+    verbose: bool,
 }
 
 pub(crate) struct RuntimeParam {
     pub(crate) config_path: PathBuf,
     pub(crate) log_dir: PathBuf,
+    pub(crate) verbose: bool,
 }
 
 impl Cli {
@@ -54,6 +58,7 @@ impl Cli {
         RuntimeParam {
             config_path,
             log_dir,
+            verbose: cli.verbose
         }
     }
 }

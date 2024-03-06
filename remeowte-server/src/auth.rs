@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     sync::RwLock,
 };
-use lazy_static::lazy_static;
 use tracing;
 use once_cell::{self, sync::Lazy};
 
